@@ -1,7 +1,23 @@
-import pandas as pd
+import re
+import unicodedata
 from pathlib import Path
 
+import pandas as pd
+
 DATA_DIR = Path(__file__).resolve().parents[1] / "data"
+
+
+def strip_non_ascii(text: str) -> str:
+    """
+    Remove non-ASCII characters (e.g., Amharic scripts, emojis) and collapse whitespace.
+    """
+    if pd.isna(text):
+        return ""
+
+    normalized = unicodedata.normalize("NFKD", str(text))
+    ascii_only = normalized.encode("ascii", "ignore").decode("ascii", "ignore")
+    ascii_only = re.sub(r"\s+", " ", ascii_only).strip()
+    return ascii_only
 
 
 def main():
@@ -13,6 +29,12 @@ def main():
 
     # Drop empty reviews
     df = df.dropna(subset=["review"])
+
+    # Remove non-ASCII characters (Amharic, emojis, etc.)
+    df["review"] = df["review"].apply(strip_non_ascii)
+
+    # Remove rows that became empty after stripping
+    df = df[df["review"].astype(bool)]
 
     # Remove very short reviews (e.g. "Good", "Ok")
     df = df[df["review"].str.len() > 5]
